@@ -51,17 +51,17 @@ class LocalUpdate(object):
                                 batch_size=int(len(idxs_test)/10), shuffle=False)
         return trainloader, validloader, testloader
 
-    def update_weights(self, model, global_round):
+    def update_weights(self, model, global_round, lr):
         # Set mode to train model
         model.train()
         epoch_loss = []
 
         # Set optimizer for the local updates
         if self.args.optimizer == 'sgd':
-            optimizer = torch.optim.SGD(model.parameters(), lr=self.args.lr,
+            optimizer = torch.optim.SGD(model.parameters(), lr=lr,
                                         momentum=0.5)
         elif self.args.optimizer == 'adam':
-            optimizer = torch.optim.Adam(model.parameters(), lr=self.args.lr,
+            optimizer = torch.optim.Adam(model.parameters(), lr=lr,
                                          weight_decay=1e-4)
 
         for iter in range(self.args.local_ep):
