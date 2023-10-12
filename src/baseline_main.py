@@ -58,7 +58,8 @@ if __name__ == '__main__':
         optimizer = torch.optim.Adam(global_model.parameters(), lr=args.lr,
                                      weight_decay=1e-4)
 
-    trainloader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=args.lr_decay)
+    trainloader = DataLoader(train_dataset, batch_size=args.local_bs * 10, shuffle=True)
     criterion = torch.nn.NLLLoss().to(device)
     epoch_loss = []
 
@@ -79,7 +80,8 @@ if __name__ == '__main__':
                     epoch+1, batch_idx * len(images), len(trainloader.dataset),
                     100. * batch_idx / len(trainloader), loss.item()))
             batch_loss.append(loss.item())
-
+	
+        scheduler.step()
         loss_avg = sum(batch_loss)/len(batch_loss)
         print('\nTrain loss:', loss_avg)
         epoch_loss.append(loss_avg)
