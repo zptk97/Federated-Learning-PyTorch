@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.6
 
+# python federated_main.py --model=cnn --dataset=cifar --local_bs=100 --local_ep=1 --epochs 700 --gpu=cuda:0 --iid=0
 
 import os
 import copy
@@ -11,7 +12,8 @@ import numpy as np
 from tqdm import tqdm
 
 import torch
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 import torchsummary
 
 from options import args_parser
@@ -24,10 +26,14 @@ if __name__ == '__main__':
 
     # define paths
     path_project = os.path.abspath('..')
-    logger = SummaryWriter('../logs')
+    # logger = SummaryWriter('../logs')
 
     args = args_parser()
     exp_details(args)
+
+    logger = SummaryWriter('../outputs/runs/fed_{}_{}_round{}_C[{}]_iid[{}]_localE[{}]_localB[{}]_lr{}_decay{}'.
+                           format(args.dataset, args.model, args.epochs, args.frac,
+                                  args.iid, args.local_ep, args.local_bs, args.lr, args.lr_decay))
 
     if args.gpu:
         torch.cuda.set_device(args.gpu)
@@ -111,7 +117,7 @@ if __name__ == '__main__':
         for c in range(args.num_users):
             local_model = LocalUpdate(args=args, dataset=train_dataset,
                                       idxs=user_groups[idx], logger=logger)
-            # model=local model이 되야하지 않나? 수정해봄
+            # model=local model이 되야하지 않나? 수정해봄 -> local_model은 model이 아님 class임
             acc, loss = local_model.inference(model=global_model)
             list_acc.append(acc)
             list_loss.append(loss)
@@ -125,11 +131,16 @@ if __name__ == '__main__':
 
         # Global test inference after aggregation per communication round
         test_acc, test_loss_tmp = test_inference(args, global_model, test_dataset)
+        test_loss_tmp = test_loss_tmp / 128
         print(f' \n Results after {epoch + 1} global rounds of training:')
         print("|---- Avg Train Accuracy: {:.2f}%".format(100 * train_accuracy[-1]))
         print("|---- Test Accuracy: {:.2f}%".format(100 * test_acc))
+        print("|---- Test Loss: {}".format(test_loss_tmp))
+        logger.add_scalar('test_acc', test_acc, epoch)
+        logger.add_scalar('test_loss', test_loss_tmp, epoch)
         test_accuracy.append(test_acc)
         test_loss.append(test_loss_tmp)
+
 
     # Test inference after completion of training
     # test_acc, test_loss = test_inference(args, global_model, test_dataset)

@@ -2,12 +2,14 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.6
 
+# python baseline_main.py --model=cnn --dataset=cifar --epochs 700 --gpu=cuda:0
 
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 import torch
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 from utils import get_dataset
 from options import args_parser
@@ -17,6 +19,10 @@ from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar
 
 if __name__ == '__main__':
     args = args_parser()
+
+    logger = SummaryWriter('../outputs/runs/central_{}_{}_round{}_lr{}_decay{}'.
+                           format(args.dataset, args.model, args.epochs, args.lr, args.lr_decay))
+
     if args.gpu:
         torch.cuda.set_device(args.gpu)
     device = 'cuda' if args.gpu else 'cpu'
@@ -85,6 +91,15 @@ if __name__ == '__main__':
         loss_avg = sum(batch_loss)/len(batch_loss)
         print('\nTrain loss:', loss_avg)
         epoch_loss.append(loss_avg)
+
+        # Global test inference after aggregation per communication round
+        test_acc, test_loss_tmp = test_inference(args, global_model, test_dataset)
+        test_loss_tmp = test_loss_tmp / 128
+        print(f' \n Results after {epoch + 1} global rounds of training:')
+        print("|---- Test Accuracy: {:.2f}%".format(100 * test_acc))
+        print("|---- Test Accuracy: {}".format(loss_avg))
+        logger.add_scalar('test_acc', test_acc, epoch)
+        logger.add_scalar('test_loss', test_loss_tmp, epoch)
 
     # Plot loss
     plt.figure()
